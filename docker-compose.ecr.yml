@@ -1,0 +1,45 @@
+# Docker Compose file for ECR deployment
+# Usage: docker-compose -f docker-compose.ecr.yml up
+# Make sure to set environment variables:
+#   export AWS_ACCOUNT_ID=your-account-id
+#   export AWS_REGION=us-east-1
+
+services:
+  backend:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION:-us-east-1}.amazonaws.com/mindr-backend:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - mindr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION:-us-east-1}.amazonaws.com/mindr-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - mindr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      # Configure frontend to connect to containerized backend
+      - VITE_API_BASE_URL=http://localhost:8000
+
+networks:
+  mindr-network:
+    driver: bridge
